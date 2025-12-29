@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Lifestyle</title>
+        <link rel="stylesheet" href="/css/main.css" />
+        <link rel="stylesheet" href="/css/lifestyle.css" />
+        <link rel="stylesheet" href="/css/update.css" />
+    </head>
+    <body class="is-loaded">
+        <div id="content">
+            <main id="main">
+                <div id="lead-area-pc">
+                    <div class="lead-area">
+                        <div class="container">
+                            <div class="lead-box">
+                                <div class="txt-wrap">
+                                    <p class="lead-1">あなたにぴったりなサービスで<br class="hidden-pc" />J:COMをおトクにスタート</p>
+                                    <p class="lead-2"><span class="text-upper text-upper-md">30秒でできるかんたん診断</span></p>
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <button id="js-lifestyle_start" class="btn-white-dark start-btn large-btn"><span class="disabled">診断準備中...</span><span class="abled">診断をスタートする</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="lifestyle-diagnosis" class="lifestyle-diagnosis-sec">
+                    <div class="container">
+                        <div class="loader-wrap"></div>
+                        <form action="">
+                            <div id="question-01" class="question-sec load-hide js-load-hide is-hide">
+                                <p class="question-ttl"><span class="label">Q1</span><span class="txt">家族構成を教えてください</span></p>
+                                <ul class="question-select-list tile3 js-question js-question-01">
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q1" value="1" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q1-01-sp.png" media="(max-width: 767px)" width="172" height="172" />
+                                                        <img src="./images/img-lifestyle-q1-01.png" width="216" height="144" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">ひとり暮らし</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q1" value="2" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q1-02-sp.png" media="(max-width: 767px)" width="172" height="172" />
+                                                        <img src="./images/img-lifestyle-q1-02.png" width="216" height="144" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">二人暮らし</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q1" value="3" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q1-03-sp.png" media="(max-width: 767px)" width="172" height="172" />
+                                                        <img src="./images/img-lifestyle-q1-03.png" width="216" height="144" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">ファミリー</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div id="question-02" class="question-sec load-hide js-load-hide is-hide">
+                                <p class="question-ttl"><span class="label">Q2</span><span class="txt">映像コンテンツの楽しみ方でどちらが多いですか？</span></p>
+                                <ul class="question-select-list tile2 js-question js-question-02">
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q2" value="1" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q2-01-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q2-01.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">ジャンル問わず<br />テレビ番組と動画配信<br />を楽しむ</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q2" value="2" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q2-02-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q2-02.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">好きなジャンルを<br />選んでテレビ番組を<br />楽しむ</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li class="sp-wide">
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q2" value="3" />
+                                            <span>
+                                                <span class="question-select-txt">あまり見ない</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div id="question-03" class="question-sec load-hide js-load-hide is-hide">
+                                <p class="question-ttl"><span class="label">Q3</span><span class="txt">ネットのご利用方法はどちらが多いですか？</span></p>
+                                <ul class="question-select-list tile2 js-question js-question-03">
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q3" value="1" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q3-01-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q3-01.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">動画を視聴する<br />ことが多い</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q3" value="2" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q3-02-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q3-02.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">オンラインゲームや<br />家族みんなで利用する</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div id="question-04" class="question-sec load-hide js-load-hide is-hide">
+                                <p class="question-ttl">
+                                    <span class="label">Q4</span><span class="txt"><span class="color-jcom sub">J:COMはスマホもおトクにご利用いただけます</span><br />スマホをどのように利用しますか？</span>
+                                </p>
+                                <ul class="question-select-list tile2 js-question js-question-04">
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q4" value="1" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q4-01-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q4-01.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">動画や音楽も<br />楽しむ</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q4" value="2" />
+                                            <span>
+                                                <span class="img">
+                                                    <picture>
+                                                        <source srcset="./images/img-lifestyle-q4-02-sp.png" media="(max-width: 767px)" width="280" height="188" />
+                                                        <img src="./images/img-lifestyle-q4-02.png" width="280" height="188" alt="" />
+                                                    </picture>
+                                                </span>
+                                                <span class="question-select-txt">SNSや調べ物を<br class="hidden-pc" />メインで利用する</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                    <li class="sp-wide">
+                                        <label class="question-select">
+                                            <input type="radio" name="question-select-q4" value="3" />
+                                            <span>
+                                                <span class="question-select-txt">興味がない</span>
+                                            </span>
+                                        </label>
+                                    </li>
+                                </ul>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <p id="reset_btn" class="text-center">
+                    <a href="#lifestyle-diagnosis" class="btn-white-dark large-btn btn-rediagnosis js-again"><span>もう一度診断する</span></a>
+                </p>
+            </main>
+        </div>
+    </body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="js/script.js"></script>
+</html>
