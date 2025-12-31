@@ -1,14 +1,23 @@
 (function () {
   'use strict';
 
-  // ================= CONFIG =================
-  // ✅ Production: hãy đổi '*' thành domain trang JSP của bạn (an toàn hơn)
-  // Ví dụ: ['https://your-jsp-domain.com', 'http://localhost:8080']
-  var ALLOWED_PARENTS = ['http://localhost:8080'];
-
+  // ===== CONFIG =====
+  var ALLOWED_PARENTS = ['http://localhost:8080']; // hoặc '*' khi debug
   var NS = 'NEO_HEATMAP';
+  var OVERLAY_ROOT_ID = 'neo-heatmap-overlay-root';
 
-  // ================= UTILS =================
+  // ===== STATE in iframe =====
+  var state = {
+    items: [],
+    maxCount: 1,
+    currentStep: -1, // -1 show all, -2 hide all
+    overlayRoot: null,
+    spotEls: [],     // aligned by item index (some may be null if not found/hidden)
+    observer: null,
+    rafId: 0
+  };
+
+  // ===== UTILS =====
   function isAllowed(origin) {
     if (ALLOWED_PARENTS.indexOf('*') !== -1) return true;
     return ALLOWED_PARENTS.indexOf(origin) !== -1;
@@ -20,28 +29,77 @@
     return Math.max(0, Math.min(1, n));
   }
 
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  var HEATMAP_STOPS = [
+    { stop: 0.0, color: { r: 0, g: 0, b: 255 } },
+    { stop: 0.3, color: { r: 0, g: 255, b: 255 } },
+    { stop: 0.5, color: { r: 0, g: 255, b: 0 } },
+    { stop: 0.7, color: { r: 255, g: 255, b: 0 } },
+    { stop: 1.0, color: { r: 255, g: 0, b: 0 } }
+  ];
+
+  var HEAT_MAX = 20;
+  var MIN_SIZE = 40;
+  var MAX_SIZE = 150;
+
+  function colorAt(tRaw) {
+    var t = Math.max(0, Math.min(1, tRaw));
+    var i = 0;
+    while (i < HEATMAP_STOPS.length - 1 && t > HEATMAP_STOPS[i + 1].stop) i++;
+    var a = HEATMAP_STOPS[i];
+    var b = HEATMAP_STOPS[Math.min(i + 1, HEATMAP_STOPS.length - 1)];
+    var span = b.stop - a.stop || 1;
+    var tt = (t - a.stop) / span;
+    return {
+      r: Math.round(lerp(a.color.r, b.color.r, tt)),
+      g: Math.round(lerp(a.color.g, b.color.g, tt)),
+      b: Math.round(lerp(a.color.b, b.color.b, tt))
+    };
+  }
+
+  function rgba(c, a) {
+    return 'rgba(' + c.r + ', ' + c.g + ', ' + c.b + ', ' + a + ')';
+  }
+
+  function getHeatStyle(count, maxCount) {
+    var denom = Math.max(HEAT_MAX, maxCount || 0);
+    var t = denom > 0 ? Math.max(0, Math.min(1, count / denom)) : 0;
+    var base = colorAt(t);
+
+    var size = MIN_SIZE + Math.sqrt(t) * (MAX_SIZE - MIN_SIZE);
+    var centerA = 0.35 + 0.65 * t;
+    var midA = 0.18 + 0.42 * t;
+
+    return {
+      width: size + 'px',
+      height: size + 'px',
+      background: 'radial-gradient(circle, ' +
+        rgba(base, centerA) + ' 0%, ' +
+        rgba(base, midA) + ' 55%, ' +
+        rgba(base, 0) + ' 100%)',
+      opacity: 1
+    };
+  }
+
   function resolveElementByXPath(doc, xpath) {
     if (!doc || !xpath) return null;
     try {
-      // Priority: XPath contains @id="..."
       var idMatch = xpath.match(/@id="([^"]+)"/);
       if (idMatch && idMatch[1]) {
         var elById = doc.getElementById(idMatch[1]);
         if (elById) return elById;
       }
-
       var result = doc.evaluate(xpath, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
       var node = result.singleNodeValue;
       if (node && node.nodeType === 1) return node;
 
-      // Fix /body -> /html/body
       if (xpath.indexOf('/body') === 0 || xpath.indexOf('//body') === 0) {
         var fixedXpath = xpath.replace(/^\/+body/, '/html/body');
         result = doc.evaluate(fixedXpath, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         node = result.singleNodeValue;
         if (node && node.nodeType === 1) return node;
       }
-
       return null;
     } catch (e) {
       return null;
@@ -64,82 +122,154 @@
     }
   }
 
-  function computePositions(items) {
-    var out = [];
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i];
+  function getOrCreateOverlayRoot() {
+    var root = document.getElementById(OVERLAY_ROOT_ID);
+    if (root) return root;
 
-      var xpath = it.xpath;
-      var xRatio = clamp01(it.xRatio);
-      var yRatio = clamp01(it.yRatio);
+    root = document.createElement('div');
+    root.id = OVERLAY_ROOT_ID;
+    root.style.cssText = [
+      'position: fixed',
+      'left: 0',
+      'top: 0',
+      'width: 100vw',
+      'height: 100vh',
+      'pointer-events: none',
+      'z-index: 2147483647',
+      'mix-blend-mode: multiply',
+      'overflow: visible'
+    ].join(';');
 
-      var el = resolveElementByXPath(document, xpath);
+    (document.body || document.documentElement).appendChild(root);
+    return root;
+  }
+
+  function clearOverlay() {
+    var root = document.getElementById(OVERLAY_ROOT_ID);
+    if (root) root.remove();
+    state.overlayRoot = null;
+    state.spotEls = [];
+  }
+
+  function applyStepVisibility() {
+    for (var i = 0; i < state.spotEls.length; i++) {
+      var el = state.spotEls[i];
+      if (!el) continue;
+      var visible = (state.currentStep === -1) || (state.currentStep >= i) || (state.currentStep === -2 ? false : false);
+      el.style.opacity = visible ? '1' : '0';
+    }
+  }
+
+  // ✅ Core: render spots (create once), then positions updated separately
+  function renderSpots() {
+    state.overlayRoot = getOrCreateOverlayRoot();
+    state.overlayRoot.innerHTML = '';
+
+    state.spotEls = new Array(state.items.length);
+
+    for (var i = 0; i < state.items.length; i++) {
+      var it = state.items[i];
+
+      // pre-create spot; if element hidden/not found => we still keep spot null
+      var el = resolveElementByXPath(document, it.xpath);
       if (!el) {
-        out.push({
-          stepIndex: it.stepIndex,
-          xpath: xpath,
-          xpathWithHash: it.xpathWithHash,
-          found: false,
-          visible: false
-        });
+        state.spotEls[i] = null;
+        continue;
+      }
+      if (!isElementVisible(el)) {
+        state.spotEls[i] = null;
         continue;
       }
 
-      var visible = isElementVisible(el);
-      var rect = el.getBoundingClientRect();
+      var heat = getHeatStyle(it.count || 1, state.maxCount);
 
-      // ✅ X/Y trong viewport của iframe
+      var spot = document.createElement('div');
+      spot.className = 'neo-heatmap-spot';
+      spot.style.cssText = [
+        'position: fixed',
+        'pointer-events: none',
+        'left: 0px',
+        'top: 0px',
+        'transform: translate(-50%, -50%)',
+        'width: ' + heat.width,
+        'height: ' + heat.height,
+        'background: ' + heat.background,
+        'opacity: 1',
+        'border-radius: 50%',
+        'filter: blur(10px)',
+        'transition: opacity 0.3s ease'
+      ].join(';');
+
+      state.overlayRoot.appendChild(spot);
+      state.spotEls[i] = spot;
+    }
+
+    updatePositions();      // initial position
+    applyStepVisibility();  // apply step opacity
+  }
+
+  // ✅ update positions to stick to elements while scroll/resize
+  function updatePositions() {
+    for (var i = 0; i < state.items.length; i++) {
+      var spot = state.spotEls[i];
+      if (!spot) continue;
+
+      var it = state.items[i];
+      var el = resolveElementByXPath(document, it.xpath);
+      if (!el || !isElementVisible(el)) {
+        // element disappeared -> hide spot
+        spot.style.opacity = '0';
+        continue;
+      }
+
+      var rect = el.getBoundingClientRect();
+      var xRatio = clamp01(it.xRatio);
+      var yRatio = clamp01(it.yRatio);
+
       var x = rect.left + rect.width * xRatio;
       var y = rect.top + rect.height * yRatio;
 
-      out.push({
-        stepIndex: it.stepIndex,
-        xpath: xpath,
-        xpathWithHash: it.xpathWithHash,
-        found: true,
-        visible: visible,
-        rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-        x: x,
-        y: y
+      spot.style.left = x + 'px';
+      spot.style.top = y + 'px';
+    }
+  }
+
+  // throttle updates by rAF
+  function scheduleUpdate() {
+    if (state.rafId) return;
+    state.rafId = requestAnimationFrame(function () {
+      state.rafId = 0;
+      updatePositions();
+    });
+  }
+
+  function setupObservers() {
+    // scroll/resize
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate);
+
+    // MutationObserver for SPA
+    if (state.observer) state.observer.disconnect();
+    if (document.body) {
+      state.observer = new MutationObserver(function () {
+        // simplest: rebuild spots then update
+        renderSpots();
+      });
+      state.observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'hidden', 'disabled']
       });
     }
-    return out;
   }
 
+  // ===== messaging =====
   function reply(toWindow, origin, message) {
-    try {
-      toWindow.postMessage(message, origin);
-    } catch (e) {
-      toWindow.postMessage(message, '*');
-    }
+    try { toWindow.postMessage(message, origin); }
+    catch (e) { toWindow.postMessage(message, '*'); }
   }
 
-  // ================= OPTIONAL: PUSH VIEWPORT CHANGES =================
-  var notifyTimer = null;
-  function notifyViewportChanged() {
-    clearTimeout(notifyTimer);
-    notifyTimer = setTimeout(function () {
-      if (!window.parent) return;
-      window.parent.postMessage(
-        {
-          ns: NS,
-          type: 'VIEWPORT_CHANGED',
-          payload: {
-            viewportW: window.innerWidth,
-            viewportH: window.innerHeight,
-            scrollX: window.scrollX,
-            scrollY: window.scrollY
-          }
-        },
-        '*'
-      );
-    }, 80);
-  }
-
-  window.addEventListener('scroll', notifyViewportChanged, { passive: true });
-  window.addEventListener('resize', notifyViewportChanged);
-
-  // ================= MESSAGE HANDLER =================
   window.addEventListener('message', function (e) {
     if (!e || !e.data || e.data.ns !== NS) return;
     if (!isAllowed(e.origin)) return;
@@ -154,53 +284,33 @@
       return;
     }
 
-    if (type === 'GET_POSITIONS') {
-      var items = payload.items || [];
-      var positions = computePositions(items);
+    // ✅ parent sends all heatmap data
+    if (type === 'INIT') {
+      state.items = payload.items || [];
+      state.maxCount = payload.maxCount || 1;
+      state.currentStep = (typeof payload.currentStep === 'number') ? payload.currentStep : -1;
 
-      reply(sourceWin, e.origin, {
-        ns: NS,
-        type: 'POSITIONS',
-        requestId: requestId,
-        payload: {
-          positions: positions,
-          viewport: {
-            viewportW: window.innerWidth,
-            viewportH: window.innerHeight,
-            scrollX: window.scrollX,
-            scrollY: window.scrollY
-          }
-        }
-      });
+      setupObservers();
+      renderSpots();
+
+      reply(sourceWin, e.origin, { ns: NS, type: 'INIT_OK', requestId: requestId });
       return;
     }
 
-    // Optional: replay click
-    if (type === 'REPLAY_STEP') {
-      var xpath2 = payload.xpath;
-      var el2 = resolveElementByXPath(document, xpath2);
-      var ok = false;
+    // ✅ step control
+    if (type === 'SET_STEP') {
+      state.currentStep = payload.currentStep;
+      applyStepVisibility();
+      reply(sourceWin, e.origin, { ns: NS, type: 'SET_STEP_OK', requestId: requestId });
+      return;
+    }
 
-      if (el2) {
-        try {
-          el2.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-          ok = true;
-        } catch (err) {
-          try {
-            el2.click();
-            ok = true;
-          } catch (err2) {}
-        }
-      }
-
-      reply(sourceWin, e.origin, {
-        ns: NS,
-        type: 'REPLAY_RESULT',
-        requestId: requestId,
-        payload: { ok: ok }
-      });
+    if (type === 'CLEAR') {
+      clearOverlay();
+      reply(sourceWin, e.origin, { ns: NS, type: 'CLEAR_OK', requestId: requestId });
+      return;
     }
   });
 
-  console.log('[NeoHeatmapAgent] ready');
+  console.log('[NeoHeatmapAgent] render-in-iframe ready');
 })();
